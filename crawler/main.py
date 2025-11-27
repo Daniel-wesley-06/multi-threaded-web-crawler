@@ -11,9 +11,12 @@ def main():
     max_depth = int(sys.argv[3]) if len(sys.argv) > 3 else 2 
     seed = sys.argv[1] if len(sys.argv) > 1 else "https://example.com/"
 
-    controller = CrawlerController(num_workers=num_workers, max_depth=max_depth)
+    same_domain = True
+    if len(sys.argv) > 4:
+        same_domain = bool(int(sys.argv[4]))
+    
+    controller = CrawlerController(num_workers=num_workers, max_depth=max_depth, same_domain=same_domain)
 
-    # seed DB if empty
     cur = controller.db_conn.cursor()
     cur.execute("SELECT COUNT(*) FROM frontier")
     if cur.fetchone()[0] == 0:

@@ -1,29 +1,43 @@
 """ Worker thread implementation using requests + BeautifulSoup """ 
-import threading 
-import logging 
-import requests 
-from bs4 import BeautifulSoup 
-from db import claim_next_url, add_url_if_new, mark_done, mark_failed 
+
+import threading
+import logging
+import requests
+from bs4 import BeautifulSoup
+from db import claim_next_url, add_url_if_new, mark_done, mark_failed
 from utils import normalize_url
 import time
+from urllib.parse import urlparse
 
-USER_AGENT = "UniversityCrawler/1.0 (+https://example.edu/)" 
-REQUEST_TIMEOUT = 10 
+USER_AGENT = "UniversityCrawler/1.0 (+https://example.edu/)"
+REQUEST_TIMEOUT = 10
 MAX_RETRIES = 2
 
-class CrawlerWorker(threading.Thread): 
-    def __init__(self, id, db_file, robots, domain_delay, max_depth=2): 
-        super().__init__(daemon=True) 
-        self.id = id 
-        # each worker keeps its own DB connection 
-        import sqlite3 
-        self.db_conn = sqlite3.connect(db_file, check_same_thread=False) 
-        self.robots = robots 
-        self.domain_delay = domain_delay 
-        self.session = requests.Session() 
-        self.session.headers.update({"User-Agent": USER_AGENT}) 
-        self.running = True 
+class CrawlerWorker(threading.Thread):
+    def __init__(self, id, db_file, robots, domain_delay, max_depth=2, same_domain=True, allowed_domains=None):
+        super().__init__(daemon=True)
+        self.id = id
+        # each worker keeps its own DB connection
+        import sqlite3
+        self.db_conn = sqlite3.connect(db_file, check_same_thread=False)
+        self.robots = robots
+        self.domain_delay = domain_delay
+        self.session = requests.Session()
+        self.session.headers.update({"User-Agent": USER_AGENT})
+        self.running = True
         self.max_depth = max_depth
+
+        # same-domain enforcement
+        self.same_domain = same_domain
+        # allowed_domains is a set of hostnames (lowercased)
+        self.allowed_domains = set(d.lower() for d in (allowed_domains or set()))
+
+    def _is_allowed_domain(self, url):
+        if not self.same_domain:
+            return True
+        parsed = urlparse(url)
+        hostname = parsed.hostname.lower() if parsed.hostname else None
+        return hostname in self.allowed_domains
 
     def run(self):
         logging.info(f"Worker-{self.id} started")
@@ -66,6 +80,10 @@ class CrawlerWorker(threading.Thread):
                     for a in soup.find_all("a", href=True):
                         new = normalize_url(url, a["href"])
                         if new:
+                            # enforce same-domain if enabled
+                            if self.same_domain and not self._is_allowed_domain(new):
+                                logging.debug(f"Worker-{self.id} skipping out-of-domain URL: {new}")
+                                continue
                             add_url_if_new(self.db_conn, new, depth + 1)
 
             except Exception as e:
@@ -82,3 +100,4 @@ class CrawlerWorker(threading.Thread):
             self.db_conn.close()
         except:
             pass
+
