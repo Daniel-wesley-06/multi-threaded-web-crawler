@@ -1,5 +1,7 @@
 """ Database helpers (sqlite3) 
-Provides init_db, claim_next_url, add_url_if_new, mark_done, mark_failed """ 
+Provides init_db, claim_next_url, add_url_if_new, mark_done, mark_failed 
+Also adds pages table + helpers for storing page metadata and deduplication.
+""" 
 import sqlite3 
 from datetime import datetime
 
@@ -17,15 +19,27 @@ def init_db(db_file=DB_FILE):
                 last_try TIMESTAMP, 
                 depth INTEGER DEFAULT 0, 
                 retries INTEGER DEFAULT 0 
-                )
-                 """) 
+        )
+    """) 
     cur.execute(""" 
                 CREATE TABLE IF NOT EXISTS visited ( 
                 url TEXT PRIMARY KEY, 
                 fetched_at TIMESTAMP, 
                 status_code INTEGER 
-                ) 
-                """) 
+        ) 
+    """) 
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS pages (
+            url TEXT PRIMARY KEY,
+            content_path TEXT,
+            content_hash TEXT,
+            title TEXT,
+            meta_description TEXT,
+            fetched_at TIMESTAMP,
+            status_code INTEGER
+        )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_pages_hash ON pages(content_hash)")
     conn.commit() 
     return conn
 
@@ -72,4 +86,32 @@ def mark_done(conn, url, status_code):
 def mark_failed(conn, url): 
     cur = conn.cursor() 
     cur.execute("UPDATE frontier SET status='failed' WHERE url=?", (url,)) 
+    conn.commit()
+
+# ---------------------------
+# Page storage helpers
+# ---------------------------
+
+def get_page_by_hash(conn, content_hash):
+    """
+    Return a row (url, content_path) for a given content_hash, or None.
+    Used to detect duplicate content.
+    """
+    cur = conn.cursor()
+    cur.execute("SELECT url, content_path FROM pages WHERE content_hash = ? LIMIT 1", (content_hash,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    return {"url": row[0], "content_path": row[1]}
+
+def save_page_metadata(conn, url, content_path, content_hash, title, meta_description, status_code):
+    """
+    Insert or update pages table with metadata for a fetched URL.
+    """
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT OR REPLACE INTO pages
+          (url, content_path, content_hash, title, meta_description, fetched_at, status_code)
+        VALUES (?, ?, ?, ?, ?, datetime('now'), ?)
+    """, (url, content_path, content_hash, title, meta_description, status_code))
     conn.commit()

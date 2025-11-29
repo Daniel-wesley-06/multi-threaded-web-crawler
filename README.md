@@ -46,3 +46,9 @@ Frontier (pending, in-progress, done, failed)
 Visited pages
 
 Simply restart the program; it continues crawling from where it left off.
+
+### Persisted pages and deduplication
+
+Fetched HTML pages are saved under `data/pages/` with filenames equal to their SHA-256 content hash (e.g. `data/pages/<hash>.html`).  
+The crawler stores page metadata in the `pages` table (url, content_path, content_hash, title, meta_description, fetched_at, status_code).  
+If two URLs produce identical content bytes the crawler detects the duplicate via content hash and does **not** store the payload twice — it links the new URL to the existing content file to save space.
