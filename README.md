@@ -1,49 +1,57 @@
-🕷️ Multi-Threaded Web Crawler (Python)
+# 🕷️ Multi-Threaded Web Crawler (Python)
 
 A fully functional multi-threaded web crawler with:
-Persistent crawling state (resume support)
-SQLite-based frontier & visited tables
-Robots.txt compliance
-Per-domain politeness delay
-Thread-safe URL claiming
-Configurable thread count and crawl depth
+- Persistent crawling state (resume support)
+- SQLite-based frontier & visited tables
+- Robots.txt compliance
+- Per-domain politeness delay
+- Thread-safe URL claiming
+- Configurable thread count and crawl depth
 
-🚀 Features
+## 🚀 Features
 
-Multi-threaded crawling
-Automatic resume even after crash
-HTML parsing with BeautifulSoup
-URL normalization
-Retries + failure handling
-Clean modular architecture
-CLI usage
+- Multi-threaded crawling
+- Automatic resume even after crash
+- HTML parsing with BeautifulSoup
+- URL normalization
+- Retries + failure handling
+- Clean modular architecture
+- CLI usage
 
-📦 Installation
+## 📦 Installation
 
+```bash
 pip install -r requirements.txt
+```
 
-▶️ Usage
+## ▶️ Usage
+
+```bash
 python -m crawler.main https://example.com 6 2
+```
 
-Args:
+### Args:
 
-Seed URL
-Number of worker threads
-Max depth
+- Seed URL
+- Number of worker threads
+- Max depth
 
-🧱 Project Structure
+## 🧱 Project Structure
+
+```
 crawler/
   main.py
   controller.py
   worker.py
   db.py
   utils.py
+```
 
-🧠 Resume Support
+## 🧠 Resume Support
 
 The crawler stores:
-Frontier (pending, in-progress, done, failed)
-Visited pages
+- Frontier (pending, in-progress, done, failed)
+- Visited pages
 
 Simply restart the program; it continues crawling from where it left off.
 
